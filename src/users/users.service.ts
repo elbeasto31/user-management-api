@@ -35,7 +35,7 @@ export class UsersService {
             users = [await this.userRepository.findOne({ where: { username: jwtDto.username }, relations: ['subordinates'] })];
         }
 
-        return await this.mapUsers(users);
+        return await this.mapper.mapArrayAsync(users, User, UserDto);
     }
 
     async changeBoss({ username, newBoss }: ChangeBossDto, jwtDto: JwtDto): Promise<void> {
@@ -50,17 +50,6 @@ export class UsersService {
             throw new BadRequestException(USERS_ERRORS.NewBossNotFound);
 
         await this.userRepository.save({ ...user, boss: boss });
-    }
-
-    mapUsers(users: User[]): Promise<UserDto[]> {
-        const mappingTasks = users.map(async x => {
-            const result = await this.mapper.mapAsync(x, User, UserDto);
-            result.subordinates = await this.mapper.mapArrayAsync(x.subordinates ?? [], User, UserDto);
-
-            return result;
-        })
-
-        return Promise.all(mappingTasks);
     }
 }
 
