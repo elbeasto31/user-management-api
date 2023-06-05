@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ChangeBossDto } from './dto/changeBoss.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtDto } from '../auth/dto/jwt.dto';
@@ -21,9 +21,19 @@ export class UsersService {
 
     async getUsers(jwtDto: JwtDto): Promise<UserDto[]> {
 
-        const users = jwtDto.role === Role.Admin ?
-            await this.userRepository.find({ relations: ['subordinates'] }) :
-            [await this.userRepository.findOne({ where: { username: jwtDto.username }, relations: ['subordinates'] })]
+        let users: User[];
+
+        if (jwtDto.role === Role.Admin)
+            users = await this.userRepository.find({ relations: ['subordinates'] });
+        else if (jwtDto.role === Role.Boss) {
+            const boss = await this.userRepository.findOne({ where: { username: jwtDto.username }, relations: ['subordinates'] });
+            const subordinates = await this.userRepository.find({ where: { role: Role.User } });
+
+            users = [boss, ...subordinates];
+        }
+        else {
+            users = [await this.userRepository.findOne({ where: { username: jwtDto.username }, relations: ['subordinates'] })];
+        }
 
         return await this.mapUsers(users);
     }
@@ -37,7 +47,7 @@ export class UsersService {
         const boss = await this.userRepository.findOne({ where: { username: newBoss, role: In([Role.Admin, Role.Boss]) } });
 
         if (!boss)
-            throw new UnauthorizedException(USERS_ERRORS.NewBossNotFound);
+            throw new BadRequestException(USERS_ERRORS.NewBossNotFound);
 
         await this.userRepository.save({ ...user, boss: boss });
     }
@@ -45,7 +55,7 @@ export class UsersService {
     mapUsers(users: User[]): Promise<UserDto[]> {
         const mappingTasks = users.map(async x => {
             const result = await this.mapper.mapAsync(x, User, UserDto);
-            result.subordinates = await this.mapper.mapArrayAsync(x.subordinates, User, UserDto);
+            result.subordinates = await this.mapper.mapArrayAsync(x.subordinates ?? [], User, UserDto);
 
             return result;
         })

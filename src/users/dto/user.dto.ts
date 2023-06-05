@@ -8,5 +8,5 @@ export class UserDto{
     @AutoMap()
     role: Role;
 
-    subordinates: UserDto[];
+    subordinates?: UserDto[];
 }
