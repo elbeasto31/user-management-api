@@ -24,7 +24,7 @@ export class UsersService {
         let users: User[];
 
         if (jwtDto.role === Role.Admin)
-            users = await this.userRepository.find({ relations: ['subordinates'] });
+            users = await this.userRepository.find({ relations: ['subordinates', 'subordinates.subordinates'] });
         else if (jwtDto.role === Role.Boss) {
             const boss = await this.userRepository.findOne({ where: { username: jwtDto.username }, relations: ['subordinates'] });
             const subordinates = await this.userRepository.find({ where: { role: Role.User } });
